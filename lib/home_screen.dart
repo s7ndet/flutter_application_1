@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'data.dart'; // phoneProducts және favoriteItems осы жерден алынады
 import 'product_detail_screen.dart';
 
@@ -27,12 +28,10 @@ class _HomeScreenState extends State<HomeScreen> {
   double minPrice = 0;
   double maxPrice = 2000000;
 
-  // Мәтіннен санды бөліп алу (мысалы: "5000 mAh" -> 5000)
   int _parseNumber(String value) {
     return int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
   }
 
-  // Фильтр терезесі (Bottom Sheet)
   void _showFilterBottomSheet() {
     _minPriceController.text = minPrice > 0 ? minPrice.toInt().toString() : '';
     _maxPriceController.text = maxPrice < 2000000 ? maxPrice.toInt().toString() : '';
@@ -115,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 25),
                         _buildSectionTitle('Брендтер'),
-                        _buildChoiceChips(["Барлығы", "Apple", "Samsung", "Xiaomi", "OPPO"], tempBrand, (val) => setModalState(() => tempBrand = val)),
+                        _buildChoiceChips(["Барлығы", "Apple", "Samsung", "Xiaomi", "OPPO", "vivo"], tempBrand, (val) => setModalState(() => tempBrand = val)),
                         const SizedBox(height: 25),
                         _buildSectionTitle('Батарея сыйымдылығы'),
                         _buildChoiceChips(["Барлығы", "4500 mAh", "5000 mAh", "6000 mAh"], tempBattery, (val) => setModalState(() => tempBattery = val), color: Colors.green),
@@ -193,123 +192,153 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // 1. Фильтрлеу логикасы
-    List<Map<String, dynamic>> filteredProducts = phoneProducts.where((product) {
-      final q = searchQuery.toLowerCase();
-      final matchesSearch = product['name'].toString().toLowerCase().contains(q) ||
-          (product['battery'] ?? '').toString().toLowerCase().contains(q) ||
-          (product['camera'] ?? '').toString().toLowerCase().contains(q);
+    return StreamBuilder<QuerySnapshot>(
+      // Firestore-дағы 'phones' (немесе 'products') коллекциясы
+      stream: FirebaseFirestore.instance.collection('phones').snapshots(),
+      builder: (context, snapshot) {
+        
+        List<Map<String, dynamic>> productsFromDB = [];
+        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+          productsFromDB = snapshot.data!.docs.map((doc) {
+            Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+            
+            // Базадан келген деректі ескі 'variants' форматына сәйкестендіру
+            if (data['variants'] == null) {
+              data['variants'] = [
+                {
+                  'price': data['price'] ?? 0,
+                  'ram': data['ram'] ?? '8 GB',
+                  'memory': data['memory'] ?? '128 GB',
+                }
+              ];
+            }
+            return data;
+          }).toList();
+        }
 
-      final matchesBrand = selectedBrand == "Барлығы" || product['brand'] == selectedBrand;
+        // Базадағы тауарлар мен data.dart-тағы тауарларды біріктіру
+        List<Map<String, dynamic>> products = [...productsFromDB, ...phoneProducts];
 
-      bool matchesBattery = true;
-      if (selectedBattery != "Барлығы") {
-        matchesBattery = _parseNumber(product['battery'] ?? '0') <= _parseNumber(selectedBattery);
-      }
+        // 1. Фильтрлеу
+        List<Map<String, dynamic>> filteredProducts = products.where((product) {
+          final q = searchQuery.toLowerCase();
+          final name = product['name'].toString().toLowerCase();
+          final brand = (product['brand'] ?? '').toString().toLowerCase();
+          
+          final matchesSearch = name.contains(q) || brand.contains(q);
+          final matchesBrand = selectedBrand == "Барлығы" || product['brand'] == selectedBrand;
 
-      bool matchesCamera = true;
-      if (selectedCamera != "Барлығы") {
-        matchesCamera = _parseNumber(product['camera'] ?? '0') <= _parseNumber(selectedCamera);
-      }
+          bool matchesBattery = true;
+          if (selectedBattery != "Барлығы") {
+            matchesBattery = _parseNumber(product['battery'] ?? '0') <= _parseNumber(selectedBattery);
+          }
 
-      final variants = product['variants'] as List;
-      final double productPrice = variants.isNotEmpty ? (variants[0]['price'] ?? 0).toDouble() : 0.0;
-      final matchesPrice = productPrice >= minPrice && productPrice <= maxPrice;
+          bool matchesCamera = true;
+          if (selectedCamera != "Барлығы") {
+            matchesCamera = _parseNumber(product['camera'] ?? '0') <= _parseNumber(selectedCamera);
+          }
 
-      final matchesRam = selectedRam == "Барлығы" ||
-          variants.any((v) => v['ram'].toString().replaceAll(' ', '') == selectedRam.replaceAll(' ', ''));
-      final matchesMemory = selectedMemories.isEmpty || variants.any((v) => selectedMemories.contains(v['memory']));
-      final matchesDiscount = !onlyWithDiscount || product['hasDiscount'] == true;
+          final variants = product['variants'] as List;
+          final double productPrice = variants.isNotEmpty ? (variants[0]['price'] ?? 0).toDouble() : 0.0;
+          final matchesPrice = productPrice >= minPrice && productPrice <= maxPrice;
 
-      return matchesSearch && matchesBrand && matchesBattery && matchesCamera && matchesPrice && matchesRam && matchesMemory && matchesDiscount;
-    }).toList();
+          final matchesRam = selectedRam == "Барлығы" ||
+              variants.any((v) => v['ram'].toString().replaceAll(' ', '') == selectedRam.replaceAll(' ', ''));
+          
+          final matchesMemory = selectedMemories.isEmpty || variants.any((v) => selectedMemories.contains(v['memory']));
+          final matchesDiscount = !onlyWithDiscount || product['hasDiscount'] == true;
 
-    // 2. Сұрыптау
-    if (sortBy == 'Арзан') {
-      filteredProducts.sort((a, b) => a['variants'][0]['price'].compareTo(b['variants'][0]['price']));
-    } else if (sortBy == 'Қымбат') {
-      filteredProducts.sort((a, b) => b['variants'][0]['price'].compareTo(a['variants'][0]['price']));
-    } else if (sortBy == 'Рейтинг') {
-      filteredProducts.sort((a, b) => (b['rating'] ?? 0.0).compareTo(a['rating'] ?? 0.0));
-    }
+          return matchesSearch && matchesBrand && matchesBattery && matchesCamera && matchesPrice && matchesRam && matchesMemory && matchesDiscount;
+        }).toList();
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        centerTitle: true,
-        title: const Text('SellPak Store', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 1)),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
-                    ),
-                    child: TextField(
-                      onChanged: (val) => setState(() => searchQuery = val),
-                      decoration: const InputDecoration(
-                        hintText: "Модель, батарея немесе камера...",
-                        prefixIcon: Icon(Icons.search, color: Colors.orange),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(vertical: 15),
+        // 2. Сұрыптау
+        if (sortBy == 'Арзан') {
+          filteredProducts.sort((a, b) => a['variants'][0]['price'].compareTo(b['variants'][0]['price']));
+        } else if (sortBy == 'Қымбат') {
+          filteredProducts.sort((a, b) => b['variants'][0]['price'].compareTo(a['variants'][0]['price']));
+        } else if (sortBy == 'Рейтинг') {
+          filteredProducts.sort((a, b) => (b['rating'] ?? 0.0).compareTo(a['rating'] ?? 0.0));
+        }
+
+        return Scaffold(
+          backgroundColor: const Color(0xFFF8F9FA),
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            centerTitle: true,
+            title: const Text('SellPak Store', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, letterSpacing: 1)),
+          ),
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(15),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+                        ),
+                        child: TextField(
+                          onChanged: (val) => setState(() => searchQuery = val),
+                          decoration: const InputDecoration(
+                            hintText: "Модель, батарея немесе камера...",
+                            prefixIcon: Icon(Icons.search, color: Colors.orange),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(vertical: 15),
+                          ),
+                        ),
                       ),
                     ),
-                  ),
+                    const SizedBox(width: 12),
+                    GestureDetector(
+                      onTap: _showFilterBottomSheet,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(15)),
+                        child: const Icon(Icons.tune_rounded, color: Colors.white),
+                      ),
+                    )
+                  ],
                 ),
-                const SizedBox(width: 12),
-                GestureDetector(
-                  onTap: _showFilterBottomSheet,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: Colors.orange, borderRadius: BorderRadius.circular(15)),
-                    child: const Icon(Icons.tune_rounded, color: Colors.white),
-                  ),
-                )
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("${filteredProducts.length} тауар табылды", style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
-                DropdownButton<String>(
-                  value: sortBy,
-                  underline: const SizedBox(),
-                  icon: const Icon(Icons.keyboard_arrow_down, color: Colors.orange),
-                  onChanged: (val) => setState(() => sortBy = val!),
-                  items: ['Әдепкі', 'Арзан', 'Қымбат', 'Рейтинг'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: filteredProducts.isEmpty
-                ? const Center(child: Text("Ештеңе табылмады 😕"))
-                : GridView.builder(
-                    padding: const EdgeInsets.all(16),
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      childAspectRatio: 0.65,
-                      crossAxisSpacing: 15,
-                      mainAxisSpacing: 15,
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("${filteredProducts.length} тауар табылды", style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+                    DropdownButton<String>(
+                      value: sortBy,
+                      underline: const SizedBox(),
+                      icon: const Icon(Icons.keyboard_arrow_down, color: Colors.orange),
+                      onChanged: (val) => setState(() => sortBy = val!),
+                      items: ['Әдепкі', 'Арзан', 'Қымбат', 'Рейтинг'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                     ),
-                    itemCount: filteredProducts.length,
-                    itemBuilder: (context, index) => _buildProductCard(filteredProducts[index]),
-                  ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: filteredProducts.isEmpty
+                    ? const Center(child: Text("Ештеңе табылмады 😕"))
+                    : GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 2,
+                          childAspectRatio: 0.65,
+                          crossAxisSpacing: 15,
+                          mainAxisSpacing: 15,
+                        ),
+                        itemCount: filteredProducts.length,
+                        itemBuilder: (context, index) => _buildProductCard(filteredProducts[index]),
+                      ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -338,7 +367,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Hero(
                       tag: phone['name'],
                       child: Image.network(
-                        (phone['images'] != null) ? phone['images'][0] : (phone['image'] ?? ''),
+                        (phone['images'] != null && (phone['images'] as List).isNotEmpty) 
+                            ? phone['images'][0] 
+                            : (phone['image'] ?? ''),
                         fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) => const Icon(Icons.smartphone, size: 50),
                       ),
@@ -356,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           const Icon(Icons.battery_std, size: 12, color: Colors.green),
                           const SizedBox(width: 4),
-                          Text("${phone['battery'] ?? '5036 mAh'}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                          Text("${phone['battery'] ?? '5000 mAh'}", style: const TextStyle(fontSize: 10, color: Colors.grey)),
                         ],
                       ),
                       const SizedBox(height: 6),

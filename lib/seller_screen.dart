@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; 
 import 'data.dart';
+import 'login_screen.dart'; // Импорт дұрыс тұрғанына көз жеткіз
 
 class SellerScreen extends StatefulWidget {
   const SellerScreen({super.key});
@@ -15,7 +17,7 @@ class _SellerScreenState extends State<SellerScreen> {
   final _brandController = TextEditingController();
   final _descController = TextEditingController();
 
-  void _addProduct() {
+  void _addProduct() async {
     if (_nameController.text.isEmpty || _priceController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -28,8 +30,8 @@ class _SellerScreenState extends State<SellerScreen> {
       return;
     }
 
-    setState(() {
-      phoneProducts.insert(0, { // Жаңа тауар тізімнің ең басына қосылады (плавно көріну үшін)
+    try {
+      await FirebaseFirestore.instance.collection('products').add({
         'name': _nameController.text,
         'brand': _brandController.text,
         'rating': 5.0,
@@ -41,38 +43,44 @@ class _SellerScreenState extends State<SellerScreen> {
         'description': _descController.text.isEmpty 
             ? 'Сатушы қосқан жаңа тауар' 
             : _descController.text,
-        'specs': {
-          'screen': '6.1" OLED', 
-          'cpu': 'Standard', 
-          'battery': '4000 mAh', 
-          'camera': 'Default'
-        },
-        'variants': [
-          {
-            'ram': 'Standard', 
-            'price': int.parse(_priceController.text)
-          }
-        ],
+        'price': int.parse(_priceController.text),
+        'timestamp': FieldValue.serverTimestamp(),
       });
-    });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Тауар сәтті қосылды!'),
-        backgroundColor: Colors.orange.shade700,
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-    );
-    
-    _nameController.clear();
-    _priceController.clear();
-    _imageController.clear();
-    _brandController.clear();
-    _descController.clear();
-    
-    FocusScope.of(context).unfocus(); // Пернетақтаны жабады
+      setState(() {
+        phoneProducts.insert(0, {
+          'name': _nameController.text,
+          'brand': _brandController.text,
+          'rating': 5.0,
+          'images': [_imageController.text.isEmpty ? 'https://via.placeholder.com/150' : _imageController.text],
+          'description': _descController.text.isEmpty ? 'Сатушы қосқан жаңа тауар' : _descController.text,
+          'specs': {'screen': '6.1" OLED', 'cpu': 'Standard', 'battery': '4000 mAh', 'camera': 'Default'},
+          'variants': [{'ram': 'Standard', 'price': int.parse(_priceController.text)}],
+        });
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Тауар Backend-ке сәтті қосылды!'),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      );
+
+      _nameController.clear();
+      _priceController.clear();
+      _imageController.clear();
+      _brandController.clear();
+      _descController.clear();
+      FocusScope.of(context).unfocus();
+
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Қате кетті: $e'), backgroundColor: Colors.red),
+      );
+    }
   }
 
   @override
@@ -86,9 +94,22 @@ class _SellerScreenState extends State<SellerScreen> {
         elevation: 0,
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout_rounded),
+            onPressed: () {
+              // Navigator жақшалары мен параметрлері түзетілді
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()), 
+                (route) => false,
+              );
+            },
+          ),
+        ],
       ),
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(), // Плавно айналдыру
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,8 +136,7 @@ class _SellerScreenState extends State<SellerScreen> {
                   
                   const SizedBox(height: 10),
                   
-                  AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
+                  SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _addProduct,
@@ -137,7 +157,6 @@ class _SellerScreenState extends State<SellerScreen> {
             
             const SizedBox(height: 30),
             
-            // Статистика бөлімі
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),

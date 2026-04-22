@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart'; // Firebase пакеті қосылды
+import 'firebase_options.dart'; // Конфигурация файлы қосылды
 import 'home_screen.dart';
 import 'favorites_screen.dart';
 import 'cart_screen.dart';
@@ -6,7 +8,16 @@ import 'profile_screen.dart';
 import 'product_detail_screen.dart'; 
 import 'data.dart';
 
-void main() {
+// main функциясын асинхронды (async) қылдық
+void main() async {
+  // Flutter-дің ішкі жүйелерін дайындау
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Backend-ті (Firebase) іске қосу
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
   runApp(const MyTeamApp());
 }
 

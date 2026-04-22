@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // Firebase пакеті қосылды
-import 'firebase_options.dart'; // Конфигурация файлы қосылды
-import 'home_screen.dart';
-import 'favorites_screen.dart';
-import 'cart_screen.dart';
-import 'profile_screen.dart';
-import 'product_detail_screen.dart'; 
-import 'data.dart';
+import 'firebase/firebase_options.dart'; // Конфигурация файлы қосылды
+import 'screens/home_screen.dart';
+import 'screens/favorites_screen.dart';
+import 'screens/cart_screen.dart';
+import 'screens/profile_screen.dart';
+import 'screens/product_detail_screen.dart'; 
+import 'models/data.dart';
 
 // main функциясын асинхронды (async) қылдық
 void main() async {

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'data.dart';
+import '../models/data.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Map<String, dynamic> product;

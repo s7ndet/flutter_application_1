@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'data.dart';
+import '../models/data.dart';
 import 'product_detail_screen.dart'; // ТҮЗЕТІЛДІ: Импорт қалдырылды
 
 class FavoritesScreen extends StatefulWidget {

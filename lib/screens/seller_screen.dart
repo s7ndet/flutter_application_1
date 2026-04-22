@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; 
-import 'data.dart';
+import '../models/data.dart';
 import 'login_screen.dart'; // Импорт дұрыс тұрғанына көз жеткіз
 
 class SellerScreen extends StatefulWidget {

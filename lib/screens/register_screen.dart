@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'seller_screen.dart'; 
 // ЕГЕР ТІРКЕЛГЕН СОҢ БАСТЫ БЕТКЕ ӨТУ КЕРЕК БОЛСА, МЫНА ИМПОРТТЫ ҚОС:
-import 'main.dart'; 
+import '../main.dart'; 
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});

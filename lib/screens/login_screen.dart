@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'home_screen.dart'; 
 import 'register_screen.dart';
 // ЕГЕР СЕНДЕ КЛАСС main.dart ІШІНДЕ БОЛСА, СОНЫ ИМПОРТТА:
-import 'main.dart'; 
+import '../main.dart'; 
 // САТУШЫ ПАНЕЛІНЕ ӨТУ ҮШІН ОСЫ ФАЙЛ КЕРЕК:
 import 'seller_screen.dart'; 
 

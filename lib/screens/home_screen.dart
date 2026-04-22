@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'data.dart'; // phoneProducts және favoriteItems осы жерден алынады
+import '../models/data.dart'; // phoneProducts және favoriteItems осы жерден алынады
 import 'product_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -193,7 +193,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance.collection('phones').snapshots(),
+      // ТҮЗЕТІЛДІ: Коллекция аты 'products' болуы керек
+      stream: FirebaseFirestore.instance.collection('products').snapshots(),
       builder: (context, snapshot) {
         
         List<Map<String, dynamic>> productsFromDB = [];
@@ -201,7 +202,7 @@ class _HomeScreenState extends State<HomeScreen> {
           productsFromDB = snapshot.data!.docs.map((doc) {
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
             
-            // Базадан келген деректерді стандарттау
+            // ТҮЗЕТІЛДІ: Variants массиві жоқ болса (Vivo сияқты), оны автоматты жасау
             if (data['variants'] == null || (data['variants'] as List).isEmpty) {
               data['variants'] = [
                 {
@@ -231,7 +232,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
           bool matchesBattery = true;
           if (selectedBattery != "Барлығы") {
-            // "Барлығынан" басқа таңдалса, көрсетілгеннен жоғарыларын іздейміз
             matchesBattery = _parseNumber(product['battery'] ?? '0') >= _parseNumber(selectedBattery);
           }
 

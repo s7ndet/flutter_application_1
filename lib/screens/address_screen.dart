@@ -47,7 +47,7 @@ class _AddressScreenState extends State<AddressScreen> {
             _buildAddressField(
               label: 'Көше',
               controller: _streetController,
-              hint: 'Мысалы: Абай даңғылы',
+              hint: 'Мысалы: Нурпон сила даңғылы',
             ),
             
             Row(

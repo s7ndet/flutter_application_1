@@ -193,7 +193,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      // Firestore-дағы 'phones' (немесе 'products') коллекциясы
       stream: FirebaseFirestore.instance.collection('phones').snapshots(),
       builder: (context, snapshot) {
         
@@ -202,16 +201,18 @@ class _HomeScreenState extends State<HomeScreen> {
           productsFromDB = snapshot.data!.docs.map((doc) {
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
             
-            // Базадан келген деректі ескі 'variants' форматына сәйкестендіру
-            if (data['variants'] == null) {
+            // Базадан келген деректерді стандарттау
+            if (data['variants'] == null || (data['variants'] as List).isEmpty) {
               data['variants'] = [
                 {
-                  'price': data['price'] ?? 0,
+                  'price': (data['price'] ?? 0).toInt(),
                   'ram': data['ram'] ?? '8 GB',
                   'memory': data['memory'] ?? '128 GB',
                 }
               ];
             }
+            // Рейтингті double форматына келтіру
+            data['rating'] = (data['rating'] ?? 0.0).toDouble();
             return data;
           }).toList();
         }
@@ -222,7 +223,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // 1. Фильтрлеу
         List<Map<String, dynamic>> filteredProducts = products.where((product) {
           final q = searchQuery.toLowerCase();
-          final name = product['name'].toString().toLowerCase();
+          final name = (product['name'] ?? '').toString().toLowerCase();
           final brand = (product['brand'] ?? '').toString().toLowerCase();
           
           final matchesSearch = name.contains(q) || brand.contains(q);
@@ -230,22 +231,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
           bool matchesBattery = true;
           if (selectedBattery != "Барлығы") {
-            matchesBattery = _parseNumber(product['battery'] ?? '0') <= _parseNumber(selectedBattery);
+            // "Барлығынан" басқа таңдалса, көрсетілгеннен жоғарыларын іздейміз
+            matchesBattery = _parseNumber(product['battery'] ?? '0') >= _parseNumber(selectedBattery);
           }
 
           bool matchesCamera = true;
           if (selectedCamera != "Барлығы") {
-            matchesCamera = _parseNumber(product['camera'] ?? '0') <= _parseNumber(selectedCamera);
+            matchesCamera = _parseNumber(product['camera'] ?? '0') >= _parseNumber(selectedCamera);
           }
 
           final variants = product['variants'] as List;
-          final double productPrice = variants.isNotEmpty ? (variants[0]['price'] ?? 0).toDouble() : 0.0;
+          final int productPrice = variants.isNotEmpty ? (variants[0]['price'] ?? 0).toInt() : 0;
           final matchesPrice = productPrice >= minPrice && productPrice <= maxPrice;
 
           final matchesRam = selectedRam == "Барлығы" ||
               variants.any((v) => v['ram'].toString().replaceAll(' ', '') == selectedRam.replaceAll(' ', ''));
           
-          final matchesMemory = selectedMemories.isEmpty || variants.any((v) => selectedMemories.contains(v['memory']));
+          final matchesMemory = selectedMemories.isEmpty || 
+              variants.any((v) => selectedMemories.contains(v['memory'].toString()));
+          
           final matchesDiscount = !onlyWithDiscount || product['hasDiscount'] == true;
 
           return matchesSearch && matchesBrand && matchesBattery && matchesCamera && matchesPrice && matchesRam && matchesMemory && matchesDiscount;
@@ -253,9 +257,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
         // 2. Сұрыптау
         if (sortBy == 'Арзан') {
-          filteredProducts.sort((a, b) => a['variants'][0]['price'].compareTo(b['variants'][0]['price']));
+          filteredProducts.sort((a, b) => (a['variants'][0]['price']).compareTo(b['variants'][0]['price']));
         } else if (sortBy == 'Қымбат') {
-          filteredProducts.sort((a, b) => b['variants'][0]['price'].compareTo(a['variants'][0]['price']));
+          filteredProducts.sort((a, b) => (b['variants'][0]['price']).compareTo(a['variants'][0]['price']));
         } else if (sortBy == 'Рейтинг') {
           filteredProducts.sort((a, b) => (b['rating'] ?? 0.0).compareTo(a['rating'] ?? 0.0));
         }
@@ -365,7 +369,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(15),
                     width: double.infinity,
                     child: Hero(
-                      tag: phone['name'],
+                      tag: phone['name'] ?? UniqueKey().toString(),
                       child: Image.network(
                         (phone['images'] != null && (phone['images'] as List).isNotEmpty) 
                             ? phone['images'][0] 
@@ -381,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(phone['name'], style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      Text(phone['name'] ?? 'Атауы жоқ', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13), maxLines: 1, overflow: TextOverflow.ellipsis),
                       const SizedBox(height: 4),
                       Row(
                         children: [

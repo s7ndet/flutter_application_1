@@ -182,8 +182,8 @@ List<Map<String, dynamic>> phoneProducts = [
     'brand': 'OPPO',
     'rating': 4.9,
     'images': [
-      'https://m.media-amazon.com/images/I/61NlUuI6fML._AC_SL1500_.jpg',
-      'https://m.media-amazon.com/images/I/61NlUuI6fML._AC_SL1500_.jpg'
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzW5Ht3T5e0iGj3t_lBgI2d8Z56W9QsEBidQ&s',
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzW5Ht3T5e0iGj3t_lBgI2d8Z56W9QsEBidQ&s'
     ],
     'description': 'Үздік жиналмалы смартфон және Hasselblad камерасы.',
     'specs': {'screen': '7.82" Foldable OLED', 'cpu': 'Snapdragon 8 Gen 2', 'battery': '4805 mAh', 'camera': '48+64+48 MP'},

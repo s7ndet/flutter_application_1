@@ -300,8 +300,7 @@ packages:
       sha256: "8161c84903fd860b26bfdefb7963b3f0b68fee7adea0f59ef805ecca346f0c7a"
       url: "https://pub.dev"
     source: hosted
-<<<<<<< HEAD
-    version: "0.7.9"
+    version: "0.7.10"
   typed_data:
     dependency: transitive
     description:
@@ -310,9 +309,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
-=======
-    version: "0.7.10"
->>>>>>> 2dc88581399379ee00f7c9b82287cb684482e5b4
   vector_math:
     dependency: transitive
     description:
@@ -325,10 +321,10 @@ packages:
     dependency: transitive
     description:
       name: vm_service
-      sha256: "046d3928e16fa4dc46e8350415661755ab759d9fc97fc21b5ab295f71e4f0499"
+      sha256: "0016aef94fc66495ac78af5859181e3f3bf2026bd8eecc72b9565601e19ab360"
       url: "https://pub.dev"
     source: hosted
-    version: "15.1.0"
+    version: "15.2.0"
   web:
     dependency: transitive
     description:

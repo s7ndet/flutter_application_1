@@ -32,8 +32,8 @@ List<Map<String, dynamic>> phoneProducts = [
     'brand': 'Apple',
     'rating': 4.6,
     'images': [
-      'https://tse1.explicit.bing.net/th/id/OIP.Yp_MIzSqRvZYdCbH8QPHvgHaJ2?rs=1&pid=ImgDetMain&o=7&rm=3',
-      'https://openshop.ua/images/detailed/121/apple-iphone-13-128gb-blue-1.jpg'
+      'https://cdn.new-brz.net/app/public/models/MLPK3ZD-A/large/w/250318170022513675.webp',
+      'https://cdn.new-brz.net/app/public/models/MLPK3ZD-A/large/w/250318170022513675.webp'
     ],
     'description': 'Күнделікті қолданысқа арналған сенімді әрі жылдам смартфон.',
     'specs': {'screen': '6.1" OLED', 'cpu': 'A15 Bionic', 'battery': '3240 mAh', 'camera': '12+12 MP'},
@@ -194,8 +194,8 @@ List<Map<String, dynamic>> phoneProducts = [
     'brand': 'OPPO',
     'rating': 4.3,
     'images': [
-      'https://m.media-amazon.com/images/I/71wP8S8L8GL._AC_SL1500_.jpg',
-      'https://m.media-amazon.com/images/I/71wP8S8L8GL._AC_SL1500_.jpg'
+      'https://object.pscloud.io/cms/cms/Photo/img_0_77_2667_0_1.webp',
+      'https://object.pscloud.io/cms/cms/Photo/img_0_77_2667_0_1.webp'
     ],
     'description': '90 Гц экраны бар сенімді бюджеттік смартфон.',
     'specs': {'screen': '6.5" IPS LCD 90Hz', 'cpu': 'Snapdragon 460', 'battery': '5000 mAh', 'camera': '13+2+2 MP'},

@@ -170,8 +170,8 @@ List<Map<String, dynamic>> phoneProducts = [
     'brand': 'OPPO',
     'rating': 4.8,
     'images': [
-      'https://m.media-amazon.com/images/I/71u9S9T7XFL._AC_SL1500_.jpg',
-      'https://oppo.kz/images/reno12-pro/silver-back.png'
+      'https://object.pscloud.io/cms/cms/Photo/img_0_77_6054_0_1_bEHzP1.jpg',
+      'https://object.pscloud.io/cms/cms/Photo/img_0_77_6054_0_1_bEHzP1.jpg'
     ],
     'description': 'AI мүмкіндіктері бар футуристік дизайн және мықты экран.',
     'specs': {'screen': '6.7" AMOLED 120Hz', 'cpu': 'Dimensity 7300-Energy', 'battery': '5000 mAh', 'camera': '50+50+8 MP'},

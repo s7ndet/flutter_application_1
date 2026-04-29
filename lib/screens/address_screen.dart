@@ -36,7 +36,7 @@ class _AddressScreenState extends State<AddressScreen> {
             ),
             const SizedBox(height: 20),
             
-            // Қала
+           // Қала
             _buildAddressField(
               label: 'Қала',
               controller: _cityController,
@@ -47,7 +47,7 @@ class _AddressScreenState extends State<AddressScreen> {
             _buildAddressField(
               label: 'Көше',
               controller: _streetController,
-              hint: 'Мысалы: Абай даңғылы',
+              hint: 'Мысалы: Нурпон сила даңғылы',
             ),
             
             Row(

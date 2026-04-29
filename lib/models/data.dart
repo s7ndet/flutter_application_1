@@ -170,8 +170,8 @@ List<Map<String, dynamic>> phoneProducts = [
     'brand': 'OPPO',
     'rating': 4.8,
     'images': [
-      'https://m.media-amazon.com/images/I/71u9S9T7XFL._AC_SL1500_.jpg',
-      'https://oppo.kz/images/reno12-pro/silver-back.png'
+      'https://object.pscloud.io/cms/cms/Photo/img_0_77_6054_0_1_bEHzP1.jpg',
+      'https://object.pscloud.io/cms/cms/Photo/img_0_77_6054_0_1_bEHzP1.jpg'
     ],
     'description': 'AI мүмкіндіктері бар футуристік дизайн және мықты экран.',
     'specs': {'screen': '6.7" AMOLED 120Hz', 'cpu': 'Dimensity 7300-Energy', 'battery': '5000 mAh', 'camera': '50+50+8 MP'},
@@ -182,8 +182,8 @@ List<Map<String, dynamic>> phoneProducts = [
     'brand': 'OPPO',
     'rating': 4.9,
     'images': [
-      'https://m.media-amazon.com/images/I/61NlUuI6fML._AC_SL1500_.jpg',
-      'https://m.media-amazon.com/images/I/61NlUuI6fML._AC_SL1500_.jpg'
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzW5Ht3T5e0iGj3t_lBgI2d8Z56W9QsEBidQ&s',
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRzW5Ht3T5e0iGj3t_lBgI2d8Z56W9QsEBidQ&s'
     ],
     'description': 'Үздік жиналмалы смартфон және Hasselblad камерасы.',
     'specs': {'screen': '7.82" Foldable OLED', 'cpu': 'Snapdragon 8 Gen 2', 'battery': '4805 mAh', 'camera': '48+64+48 MP'},

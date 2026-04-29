@@ -65,7 +65,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Hero(
-                        tag: item['name'] ?? 'fav_${index}',
+                       tag: item['name'] ?? 'fav_${index}',
                         child: Image.network(
                           // ТҮЗЕТІЛДІ: images тізімінің бірінші элементін алу
                           (item['images'] != null && (item['images'] as List).isNotEmpty)

@@ -157,7 +157,7 @@ class _CartScreenState extends State<CartScreen> {
                               );
                             }
                           },
-                          child: const Text('Жалғастыру', style: TextStyle(fontSize: 18, color: Colors.white)),
+              child: const Text('Жалғастыру', style: TextStyle(fontSize: 18, color: Colors.white)),
                         ),
                       ),
                     ],

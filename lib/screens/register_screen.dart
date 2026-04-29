@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // ОСЫ КЕРЕК
 import 'login_screen.dart';
 import 'seller_screen.dart'; 
-// ЕГЕР ТІРКЕЛГЕН СОҢ БАСТЫ БЕТКЕ ӨТУ КЕРЕК БОЛСА, МЫНА ИМПОРТТЫ ҚОС:
 import '../main.dart'; 
 
 class RegisterScreen extends StatefulWidget {
@@ -12,54 +13,99 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  // Бақылаушылар (Controllers)
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
-  // ӨЗГЕРТІЛДІ: Сатушы ма, жоқ па екенін анықтайтын айнымалы
   bool _isSeller = false;
 
-  void _register() {
+  // НЕГІЗГІ ТІРКЕУ ФУНКЦИЯСЫ
+  Future<void> _register() async {
     String name = _nameController.text.trim();
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
     String confirmPassword = _confirmPasswordController.text.trim();
 
-    // Қарапайым тексерулер
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Барлық жолақты толтырыңыз!'), backgroundColor: Colors.red),
-      );
+      _showError('Барлық жолақты толтырыңыз!');
       return;
     }
 
     if (password != confirmPassword) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Құпия сөздер сәйкес келмейді!'), backgroundColor: Colors.red),
-      );
+      _showError('Құпия сөздер сәйкес келмейді!');
       return;
     }
 
-    // Тіркелу сәтті өткен жағдайды имитациялау
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Тіркелу сәтті аяқталды!'), backgroundColor: Colors.green),
-    );
-
-    // ӨЗГЕРТІЛДІ: Тіркелгеннен кейін таңдауға байланысты бетке бағыттау
-    if (_isSeller) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const SellerScreen()),
-      );
-    } else {
-      // Қолданушы болса басты бетке (MainNavigation) немесе логинге жіберу
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MainNavigation()),
-      );
+    if (password.length < 6) {
+      _showError('Құпия сөз кем дегенде 6 символ болуы керек!');
+      return;
     }
+
+    try {
+      // Күту диалогын қосу
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.orange)),
+      );
+
+      // 1. Firebase Authentication-ге тіркеу
+      UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // 2. Firestore базасына пайдаланушы мәліметтерін және РОЛІН сақтау
+      // Бұл ағайдың "бәрі базада болсын" деген талабы үшін өте маңызды
+      await FirebaseFirestore.instance.collection('users').doc(userCredential.user!.uid).set({
+        'uid': userCredential.user!.uid,
+        'name': name,
+        'email': email,
+        'role': _isSeller ? 'seller' : 'customer', // Рольді осы жерде бөлеміз
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+      Navigator.pop(context); // Күту диалогын жабу
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Тіркелу сәтті аяқталды!'), backgroundColor: Colors.green),
+      );
+
+      // 3. Таңдалған рольге байланысты бетке бағыттау
+      if (_isSeller) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SellerScreen()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainNavigation()),
+        );
+      }
+
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      
+      String msg = "Тіркелу кезінде қате шықты";
+      if (e.code == 'email-already-in-use') msg = "Бұл email тіркеліп қойған.";
+      if (e.code == 'invalid-email') msg = "Email форматы қате.";
+      
+      _showError(msg);
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      _showError("Жүйелік қате: $e");
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   @override
@@ -88,71 +134,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
               const Text("Жаңа аккаунт ашыңыз", style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 40),
 
-              // Аты-жөні
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: "Толық атыңыз",
-                  prefixIcon: const Icon(Icons.person_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-              ),
+              _buildTextField(_nameController, "Толық атыңыз", Icons.person_outline),
               const SizedBox(height: 20),
-
-              // Email
-              TextField(
-                controller: _emailController,
-                decoration: InputDecoration(
-                  labelText: "Логин немесе Email",
-                  prefixIcon: const Icon(Icons.email_outlined),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-              ),
+              _buildTextField(_emailController, "Email", Icons.email_outlined, type: TextInputType.emailAddress),
               const SizedBox(height: 20),
-
-              // Құпия сөз
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Құпия сөз",
-                  prefixIcon: const Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-              ),
+              _buildTextField(_passwordController, "Құпия сөз", Icons.lock_outline, isPass: true),
               const SizedBox(height: 20),
-
-              // Құпия сөзді қайталау
-              TextField(
-                controller: _confirmPasswordController,
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: "Құпия сөзді қайталаңыз",
-                  prefixIcon: const Icon(Icons.lock_reset),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
-                ),
-              ),
+              _buildTextField(_confirmPasswordController, "Құпия сөзді қайталаңыз", Icons.lock_reset, isPass: true),
               
-              // ЖАҢАДАН ҚОСЫЛҒАН: Сатушы ретінде тіркелу таңдауы
               const SizedBox(height: 15),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Text("Сатушы ретінде тіркелу", style: TextStyle(fontSize: 16)),
-                  Switch(
-                    value: _isSeller,
-                    activeColor: Colors.orange,
-                    onChanged: (value) {
-                      setState(() {
-                        _isSeller = value;
-                      });
-                    },
-                  ),
-                ],
+              // РОЛЬ ТАҢДАУ (SWITCH)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: Colors.grey[200]!),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _isSeller ? "Мен Сатушымын 🏢" : "Мен Қолданушымын 🛒",
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    ),
+                    Switch(
+                      value: _isSeller,
+                      activeColor: Colors.orange,
+                      onChanged: (value) => setState(() => _isSeller = value),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 15),
+              const SizedBox(height: 30),
 
-              // Тіркелу батырмасы
               SizedBox(
                 width: double.infinity,
                 height: 55,
@@ -162,15 +177,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                   ),
                   onPressed: _register,
-                  child: const Text(
-                    "Тіркелу",
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
+                  child: const Text("Тіркелу", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                 ),
               ),
               const SizedBox(height: 20),
 
-              // Кіру бетіне қайтару
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -184,6 +195,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, IconData icon, {bool isPass = false, TextInputType type = TextInputType.text}) {
+    return TextField(
+      controller: controller,
+      obscureText: isPass,
+      keyboardType: type,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
       ),
     );
   }

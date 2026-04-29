@@ -28,6 +28,42 @@ class _HomeScreenState extends State<HomeScreen> {
   double minPrice = 0;
   double maxPrice = 2000000;
 
+  @override
+  void initState() {
+    super.initState();
+    // БАЗАҒА КӨШІРУ ҮШІН: Төмендегі жолдың комментін бір рет қана ашып, 
+    // бағдарламаны іске қосып, 1 минут күтіп, сосын қайта жауып таста.
+    
+    // _uploadDataToFirebase(); 
+  }
+
+  // --- ТҮЗЕТІЛГЕН ФУНКЦИЯ: БАЗАҒА КӨШІРУ (PRICE ҚОСЫЛДЫ) ---
+  Future<void> _uploadDataToFirebase() async {
+    final collection = FirebaseFirestore.instance.collection('products');
+    
+    for (var product in phoneProducts) {
+      // Алғашқы варианттан бағасын анықтап алу
+      final int productPrice = (product['variants'] != null && (product['variants'] as List).isNotEmpty)
+          ? product['variants'][0]['price']
+          : (product['price'] ?? 0);
+
+      await collection.add({
+        'name': product['name'],
+        'brand': product['brand'],
+        'battery': product['battery'],
+        'camera': product['camera'],
+        'price': productPrice, // Базада баға бойынша сұрыптау үшін керек
+        'rating': (product['rating'] ?? 0.0).toDouble(),
+        'image': product['image'],
+        'images': product['images'],
+        'hasDiscount': product['hasDiscount'] ?? false,
+        'variants': product['variants'],
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+    print("33 тауар базаға сәтті көшірілді!");
+  }
+
   int _parseNumber(String value) {
     return int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
   }
@@ -193,7 +229,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
-      // ТҮЗЕТІЛДІ: Коллекция аты 'products' болуы керек
       stream: FirebaseFirestore.instance.collection('products').snapshots(),
       builder: (context, snapshot) {
         
@@ -202,7 +237,7 @@ class _HomeScreenState extends State<HomeScreen> {
           productsFromDB = snapshot.data!.docs.map((doc) {
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
             
-            // ТҮЗЕТІЛДІ: Variants массиві жоқ болса (Vivo сияқты), оны автоматты жасау
+            // ТҮЗЕТУ: Базада 'variants' тізімі бос болмауын қадағалау
             if (data['variants'] == null || (data['variants'] as List).isEmpty) {
               data['variants'] = [
                 {
@@ -212,14 +247,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 }
               ];
             }
-            // Рейтингті double форматына келтіру
             data['rating'] = (data['rating'] ?? 0.0).toDouble();
             return data;
           }).toList();
         }
 
-        // Базадағы тауарлар мен data.dart-тағы тауарларды біріктіру
-        List<Map<String, dynamic>> products = [...productsFromDB, ...phoneProducts];
+        // Базадан дерек келсе — соны көрсетеді, әйтпесе локальді деректі (phoneProducts) көрсетеді
+        List<Map<String, dynamic>> products = productsFromDB.isEmpty ? phoneProducts : productsFromDB;
 
         // 1. Фильтрлеу
         List<Map<String, dynamic>> filteredProducts = products.where((product) {

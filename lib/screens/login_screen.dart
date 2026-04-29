@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // ПАКЕТ ҚОСЫЛДЫ
 import 'home_screen.dart'; 
 import 'register_screen.dart';
-// ЕГЕР СЕНДЕ КЛАСС main.dart ІШІНДЕ БОЛСА, СОНЫ ИМПОРТТА:
 import '../main.dart'; 
-// САТУШЫ ПАНЕЛІНЕ ӨТУ ҮШІН ОСЫ ФАЙЛ КЕРЕК:
 import 'seller_screen.dart'; 
 
 class LoginScreen extends StatefulWidget {
@@ -17,12 +16,36 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  void _login() {
+  // ФУНКЦИЯ ЖАҢАРТЫЛДЫ: Firebase-пен жұмыс істеу үшін async қосылды
+  Future<void> _login() async {
     String email = _emailController.text.trim();
     String password = _passwordController.text.trim();
 
-    if (email == "sundet.nazar" && password == "Sundet05") {
-      // ТҮЗЕТІЛДІ: Тікелей өтпей, алдымен таңдау диалогын шығарамыз
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Барлық өрісті толтырыңыз!'), backgroundColor: Colors.red),
+      );
+      return;
+    }
+
+    try {
+      // КҮТУ ДИАЛОГЫ (Жүктеу кезінде экран қатып қалмау үшін)
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const Center(child: CircularProgressIndicator(color: Colors.orange)),
+      );
+
+      // FIREBASE AUTH АРҚЫЛЫ КІРУ
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      if (!mounted) return;
+      Navigator.pop(context); // Күту диалогын жабу
+
+      // СӘТТІ КІРГЕННЕН КЕЙІН ТАҢДАУ ДИАЛОГЫН ШЫҒАРУ
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -34,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
           actions: [
             TextButton(
               onPressed: () {
-                Navigator.pop(context); // Диалогты жабу
+                Navigator.pop(context);
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const MainNavigation()),
@@ -42,14 +65,13 @@ class _LoginScreenState extends State<LoginScreen> {
               },
               child: const Text("Қолданушы", style: TextStyle(color: Colors.grey, fontSize: 16)),
             ),
-            // ОСЫ БАТЫРМА САТУШЫНЫҢ МҮМКІНДІКТЕРІНЕ (SellerScreen) ЖІБЕРЕДІ
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.orange,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: () {
-                Navigator.pop(context); // Диалогты жабу
+                Navigator.pop(context);
                 Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (context) => const SellerScreen()),
@@ -60,12 +82,23 @@ class _LoginScreenState extends State<LoginScreen> {
           ],
         ),
       );
-    } else {
+
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context); // Күту диалогын жабу
+
+      // ҚАТЕЛЕРДІ ӨҢДЕУ
+      String errorMessage = "Қате орын алды";
+      if (e.code == 'user-not-found') {
+        errorMessage = "Мұндай қолданушы тіркелмеген.";
+      } else if (e.code == 'wrong-password') {
+        errorMessage = "Құпия сөз қате.";
+      } else if (e.code == 'invalid-email') {
+        errorMessage = "Email форматы дұрыс емес.";
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Email немесе құпия сөз қате!'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(errorMessage), backgroundColor: Colors.red),
       );
     }
   }
@@ -90,9 +123,10 @@ class _LoginScreenState extends State<LoginScreen> {
               
               TextField(
                 controller: _emailController,
+                keyboardType: TextInputType.emailAddress, // Пошта үшін ыңғайлы пернетақта
                 decoration: InputDecoration(
-                  labelText: "Логин",
-                  prefixIcon: const Icon(Icons.person),
+                  labelText: "Email", // Логин емес, Email болғаны дұрыс
+                  prefixIcon: const Icon(Icons.email),
                   border: OutlineInputBorder(borderRadius: BorderRadius.circular(15)),
                 ),
               ),
@@ -117,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     backgroundColor: Colors.orange,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                   ),
-                  onPressed: _login,
+                  onPressed: _login, // ЖАҢАРТЫЛҒАН ФУНКЦИЯ
                   child: const Text(
                     "Кіру",
                     style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),

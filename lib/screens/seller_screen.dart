@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/data.dart';
-import 'login_screen.dart'; // Импорт дұрыс тұрғанына көз жеткіз
+import 'login_screen.dart';
 
 class SellerScreen extends StatefulWidget {
   const SellerScreen({super.key});
@@ -11,6 +11,49 @@ class SellerScreen extends StatefulWidget {
 }
 
 class _SellerScreenState extends State<SellerScreen> {
+  int _selectedIndex = 0;
+
+  // БЕТТЕР ТІЗІМІ
+  late final List<Widget> _pages;
+
+  @override
+  void initState() {
+    super.initState();
+    _pages = [
+      const AddProductPage(), // 1. Тауар қосу (сенің дизайның)
+      const StatisticsPage(), // 2. Статистика беті
+      const OrdersPage(),     // 3. Тапсырыстарды бақылау
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        selectedItemColor: Colors.orange.shade800,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.add_box_outlined), label: 'Тауар қосу'),
+          BottomNavigationBarItem(icon: Icon(Icons.bar_chart_rounded), label: 'Статистика'),
+          BottomNavigationBarItem(icon: Icon(Icons.local_shipping_outlined), label: 'Тапсырыстар'),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 1. ТАУАР ҚОСУ БЕТІ (СЕНІҢ КОДЫҢ) ---
+class AddProductPage extends StatefulWidget {
+  const AddProductPage({super.key});
+
+  @override
+  State<AddProductPage> createState() => _AddProductPageState();
+}
+
+class _AddProductPageState extends State<AddProductPage> {
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
   final _imageController = TextEditingController();
@@ -19,161 +62,70 @@ class _SellerScreenState extends State<SellerScreen> {
 
   void _addProduct() async {
     if (_nameController.text.isEmpty || _priceController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Аты мен бағасын толтырыңыз!', style: TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red.shade400,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
+      _showSnack('Аты мен бағасын толтырыңыз!', Colors.red.shade400);
       return;
     }
-
     try {
       await FirebaseFirestore.instance.collection('products').add({
         'name': _nameController.text,
         'brand': _brandController.text,
         'rating': 5.0,
-        'images': [
-          _imageController.text.isEmpty 
-              ? 'https://via.placeholder.com/150' 
-              : _imageController.text
-        ],
-        'description': _descController.text.isEmpty 
-            ? 'Сатушы қосқан жаңа тауар' 
-            : _descController.text,
+        'images': [_imageController.text.isEmpty ? 'https://via.placeholder.com/150' : _imageController.text],
+        'description': _descController.text.isEmpty ? 'Сатушы қосқан жаңа тауар' : _descController.text,
         'price': int.parse(_priceController.text),
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      setState(() {
-        phoneProducts.insert(0, {
-          'name': _nameController.text,
-          'brand': _brandController.text,
-          'rating': 5.0,
-          'images': [_imageController.text.isEmpty ? 'https://via.placeholder.com/150' : _imageController.text],
-          'description': _descController.text.isEmpty ? 'Сатушы қосқан жаңа тауар' : _descController.text,
-          'specs': {'screen': '6.1" OLED', 'cpu': 'Standard', 'battery': '4000 mAh', 'camera': 'Default'},
-          'variants': [{'ram': 'Standard', 'price': int.parse(_priceController.text)}],
-        });
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Тауар Backend-ке сәтті қосылды!'),
-          backgroundColor: Colors.green.shade700,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        ),
-      );
-
-      _nameController.clear();
-      _priceController.clear();
-      _imageController.clear();
-      _brandController.clear();
-      _descController.clear();
-      FocusScope.of(context).unfocus();
-
+      _showSnack('Тауар сәтті қосылды!', Colors.green.shade700);
+      _clearAll();
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате кетті: $e'), backgroundColor: Colors.red),
-      );
+      _showSnack('Қате кетті: $e', Colors.red);
     }
+  }
+
+  void _showSnack(String msg, Color color) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color, behavior: SnackBarBehavior.floating));
+  }
+
+  void _clearAll() {
+    _nameController.clear(); _priceController.clear(); _imageController.clear(); _brandController.clear(); _descController.clear();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        title: const Text('Сатушы панелі', 
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)), 
+        title: const Text('Сатушы панелі', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.orange.shade800,
-        elevation: 0,
         centerTitle: true,
-        iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded),
-            onPressed: () {
-              // Navigator жақшалары мен параметрлері түзетілді
-              Navigator.pushAndRemoveUntil(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()), 
-                (route) => false,
-              );
-            },
-          ),
+          IconButton(icon: const Icon(Icons.logout, color: Colors.white), onPressed: () => Navigator.pushReplacement(context, MaterialPageRoute(builder: (c) => const LoginScreen())))
         ],
       ),
       body: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 15.0),
+        padding: const EdgeInsets.all(20.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5)),
-                ],
-              ),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 15)]),
               child: Column(
                 children: [
-                  const Text('Жаңа тауар ақпараты', 
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+                  const Text('Жаңа тауар ақпараты', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
                   _buildField(_brandController, 'Бренд', Icons.branding_watermark_outlined),
                   _buildField(_nameController, 'Модель аты', Icons.phone_android_outlined),
                   _buildField(_priceController, 'Бағасы (₸)', Icons.payments_outlined, isNum: true),
                   _buildField(_imageController, 'Сурет URL', Icons.link_rounded),
                   _buildField(_descController, 'Сипаттама', Icons.description_outlined, maxLines: 3),
-                  
                   const SizedBox(height: 10),
-                  
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: _addProduct,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.orange.shade800,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                        elevation: 4,
-                      ),
-                      child: const Text('Дүкенге шығару', 
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
+                      child: const Text('Дүкенге шығару', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 30),
-            
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [Colors.orange.shade700, Colors.orange.shade900]),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Дүкендегі тауар саны:', 
-                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500)),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                    child: Text('${phoneProducts.length}', 
-                      style: const TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
@@ -191,22 +143,102 @@ class _SellerScreenState extends State<SellerScreen> {
         controller: controller,
         maxLines: maxLines,
         keyboardType: isNum ? TextInputType.number : TextInputType.text,
-        style: const TextStyle(fontSize: 15),
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(icon, color: Colors.orange.shade800, size: 22),
+          prefixIcon: Icon(icon, color: Colors.orange.shade800),
           filled: true,
           fillColor: Colors.grey.shade50,
-          labelStyle: TextStyle(color: Colors.grey.shade600),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.grey.shade200),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(12),
-            borderSide: BorderSide(color: Colors.orange.shade800, width: 1.5),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
         ),
+      ),
+    );
+  }
+}
+
+// --- 2. СТАТИСТИКА БЕТІ (БӨЛЕК) ---
+class StatisticsPage extends StatelessWidget {
+  const StatisticsPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Статистика'), backgroundColor: Colors.orange.shade800, foregroundColor: Colors.white),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('orders').snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          
+          double revenue = 0;
+          for (var doc in snapshot.data!.docs) {
+            revenue += (doc['price'] ?? 0).toDouble();
+          }
+
+          return Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              children: [
+                _statCard("Жалпы табыс", "${revenue.toInt()} ₸", Colors.green, Icons.monetization_on),
+                const SizedBox(height: 15),
+                _statCard("Сатылған тауар", "${snapshot.data!.docs.length}", Colors.blue, Icons.shopping_bag),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _statCard(String t, String v, Color c, IconData i) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)]),
+      child: Row(
+        children: [
+          Icon(i, color: c, size: 40),
+          const SizedBox(width: 20),
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(t, style: const TextStyle(color: Colors.grey)),
+            Text(v, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          ]),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 3. ТАПСЫРЫСТАРДЫ БАҚЫЛАУ БЕТІ (БӨЛЕК) ---
+class OrdersPage extends StatelessWidget {
+  const OrdersPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Тапсырыстар'), backgroundColor: Colors.orange.shade800, foregroundColor: Colors.white),
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('orders').orderBy('createdAt', descending: true).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+          if (snapshot.data!.docs.isEmpty) return const Center(child: Text('Тапсырыстар жоқ'));
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(15),
+            itemCount: snapshot.data!.docs.length,
+            itemBuilder: (context, index) {
+              var order = snapshot.data!.docs[index];
+              return Card(
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: const CircleAvatar(backgroundColor: Colors.orange, child: Icon(Icons.person, color: Colors.white)),
+                  title: Text(order['productName'] ?? 'Тауар'),
+                  subtitle: Text('Мекенжай: ${order['address']}'),
+                  trailing: Text('${order['price']} ₸', style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

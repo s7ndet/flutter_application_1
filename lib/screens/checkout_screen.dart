@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // ҚОСЫЛДЫ
-import 'package:firebase_auth/firebase_auth.dart'; // ҚОСЫЛДЫ
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CheckoutScreen extends StatefulWidget {
   final int total;
@@ -16,54 +16,77 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   bool _isCVVHidden = true;
   String? selectedCity;
 
-  // Мекенжай үшін контроллерлер (Базаға жіберу үшін керек)
   final TextEditingController _streetController = TextEditingController();
   final TextEditingController _apartmentController = TextEditingController();
   final TextEditingController _entranceController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _cardNumberController = TextEditingController();
+  final TextEditingController _expiryController = TextEditingController();
+  final TextEditingController _cvvController = TextEditingController();
 
   final List<String> cities = [
     'Алматы', 'Астана', 'Шымкент', 'Ақтөбе', 'Қарағанды', 
     'Тараз', 'Павлодар', 'Өскемен', 'Семей', 'Қостанай', 'Орал'
   ];
 
-  // ӨЗГЕРТІЛДІ: Тапсырысты Firebase-ке жіберу логикасы
   Future<void> _processOrder() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
     try {
-      // 1. Алдымен себеттегі тауарларды базадан аламыз
+      // 1. Себеттегі таңдалған тауарларды алу
       var cartSnapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .collection('cart')
+          .where('isSelected', isEqualTo: true)
           .get();
 
-      List<Map<String, dynamic>> items = cartSnapshot.docs.map((doc) => doc.data()).toList();
+      if (cartSnapshot.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Себетте таңдалған тауар жоқ!')),
+        );
+        return;
+      }
 
-      // 2. Orders коллекциясына жаңа тапсырыс қосамыз
-      await FirebaseFirestore.instance.collection('orders').add({
-        'userId': user.uid,
-        'items': items,
-        'totalPrice': widget.total,
-        'status': 'Өңделуде',
-        'address': '$selectedCity, ${_streetController.text}, пәт: ${_apartmentController.text}, кіреберіс: ${_entranceController.text}',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      // 2. Ортақ тапсырыс ID-ін жасау (бірнеше тауарды бір топқа біріктіру үшін)
+      String orderGroupId = DateTime.now().millisecondsSinceEpoch.toString();
 
-      // 3. Себетті тазалаймыз
+      // 3. Тапсырыстарды 'orders' коллекциясына жазу
+      for (var doc in cartSnapshot.docs) {
+        var itemData = doc.data();
+        
+        await FirebaseFirestore.instance.collection('orders').add({
+          'orderId': orderGroupId,
+          'userId': user.uid,
+          'userEmail': user.email,
+          'productName': itemData['name'],
+          'selectedVariant': itemData['selectedVariant'] ?? 'Стандарт',
+          'image': itemData['image'] ?? (itemData['images'] != null ? itemData['images'][0] : ""),
+          'price': itemData['price'],
+          'quantity': itemData['quantity'] ?? 1,
+          'totalBill': widget.total, // Жалпы төленген сома
+          'status': 'Өңделуде',
+          'customerName': _nameController.text,
+          'address': '$selectedCity, ${_streetController.text}, пәт: ${_apartmentController.text}, кіреберіс: ${_entranceController.text}',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      // 4. Себеттен сатып алынған тауарларды өшіру
       for (var doc in cartSnapshot.docs) {
         await doc.reference.delete();
       }
 
-      // 4. Сәтті аяқталғанын көрсету
       if (mounted) {
         _showSuccessDialog();
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате орын алды: $e'), backgroundColor: Colors.red),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Қате орын алды: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -97,7 +120,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 10),
 
               TextFormField(
-                controller: _streetController, // ҚОСЫЛДЫ
+                controller: _streetController,
                 decoration: _inputStyle("Көше, үй нөмірі", Icons.home),
                 validator: (value) => value!.isEmpty ? 'Көшені жазыңыз' : null,
               ),
@@ -107,7 +130,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 children: [
                   Expanded(
                     child: TextFormField(
-                      controller: _apartmentController, // ҚОСЫЛДЫ
+                      controller: _apartmentController,
                       decoration: _inputStyle("Пәтер", Icons.door_front_door),
                       validator: (value) => value!.isEmpty ? 'Пәтерді жазыңыз' : null,
                     ),
@@ -115,7 +138,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: TextFormField(
-                      controller: _entranceController, // ҚОСЫЛДЫ
+                      controller: _entranceController,
                       decoration: _inputStyle("Кіреберіс", Icons.stairs),
                       validator: (value) => value!.isEmpty ? 'Кіреберісті жазыңыз' : null,
                     ),
@@ -128,6 +151,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 15),
               
               TextFormField(
+                controller: _nameController,
                 inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z\s]'))],
                 decoration: _inputStyle("Карта иесінің аты-жөні", Icons.person),
                 validator: (value) => value!.isEmpty ? 'Аты-жөніңізді жазыңыз' : null,
@@ -135,6 +159,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               const SizedBox(height: 10),
               
               TextFormField(
+                controller: _cardNumberController,
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(16)],
                 decoration: _inputStyle("0000 0000 0000 0000", Icons.credit_card),
@@ -146,6 +171,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                 children: [
                   Expanded(
                     child: TextFormField(
+                      controller: _expiryController,
                       keyboardType: TextInputType.number,
                       inputFormatters: [LengthLimitingTextInputFormatter(5)],
                       decoration: _inputStyle("MM/YY", Icons.calendar_today),
@@ -155,6 +181,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                   const SizedBox(width: 15),
                   Expanded(
                     child: TextFormField(
+                      controller: _cvvController,
                       obscureText: _isCVVHidden,
                       keyboardType: TextInputType.number,
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly, LengthLimitingTextInputFormatter(3)],
@@ -196,11 +223,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
                         onPressed: () {
                           if (_formKey.currentState!.validate()) {
-                            _processOrder(); // ӨЗГЕРТІЛДІ
-                          } else {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Барлық жерді дұрыс толтырыңыз!'), backgroundColor: Colors.red),
-                            );
+                            _processOrder();
                           }
                         },
                         child: const Text('Төлемді аяқтау', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
@@ -234,13 +257,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Text('Сәтті!', textAlign: TextAlign.center),
-        content: const Text('Тапсырысыңыз қабылданды. Тарих бөлімінен көре аласыз.', textAlign: TextAlign.center),
+        content: const Text('Тапсырысыңыз қабылданды. Рахмет!', textAlign: TextAlign.center),
         actions: [
           Center(
             child: TextButton(
               onPressed: () {
-                Navigator.pop(context); // Диалогты жабу
-                Navigator.popUntil(context, (route) => route.isFirst); // Басты бетке қайту
+                Navigator.pop(context);
+                Navigator.popUntil(context, (route) => route.isFirst);
               },
               child: const Text('Жақсы', style: TextStyle(color: Colors.orange, fontSize: 18, fontWeight: FontWeight.bold)),
             ),

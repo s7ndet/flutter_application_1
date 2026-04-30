@@ -28,42 +28,6 @@ class _HomeScreenState extends State<HomeScreen> {
   double minPrice = 0;
   double maxPrice = 2000000;
 
-  @override
-  void initState() {
-    super.initState();
-    // БАЗАҒА КӨШІРУ ҮШІН: Төмендегі жолдың комментін бір рет қана ашып, 
-    // бағдарламаны іске қосып, 1 минут күтіп, сосын қайта жауып таста.
-    
-    // _uploadDataToFirebase(); 
-  }
-
-  // --- ТҮЗЕТІЛГЕН ФУНКЦИЯ: БАЗАҒА КӨШІРУ (PRICE ҚОСЫЛДЫ) ---
-  Future<void> _uploadDataToFirebase() async {
-    final collection = FirebaseFirestore.instance.collection('products');
-    
-    for (var product in phoneProducts) {
-      // Алғашқы варианттан бағасын анықтап алу
-      final int productPrice = (product['variants'] != null && (product['variants'] as List).isNotEmpty)
-          ? product['variants'][0]['price']
-          : (product['price'] ?? 0);
-
-      await collection.add({
-        'name': product['name'],
-        'brand': product['brand'],
-        'battery': product['battery'],
-        'camera': product['camera'],
-        'price': productPrice, // Базада баға бойынша сұрыптау үшін керек
-        'rating': (product['rating'] ?? 0.0).toDouble(),
-        'image': product['image'],
-        'images': product['images'],
-        'hasDiscount': product['hasDiscount'] ?? false,
-        'variants': product['variants'],
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-    }
-    print("33 тауар базаға сәтті көшірілді!");
-  }
-
   int _parseNumber(String value) {
     return int.tryParse(value.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
   }
@@ -233,11 +197,12 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, snapshot) {
         
         List<Map<String, dynamic>> productsFromDB = [];
-        if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+        
+        if (snapshot.hasData) {
           productsFromDB = snapshot.data!.docs.map((doc) {
             Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
             
-            // ТҮЗЕТУ: Базада 'variants' тізімі бос болмауын қадағалау
+            // Базада 'variants' болмаса, 'price' бойынша жасап береміз
             if (data['variants'] == null || (data['variants'] as List).isEmpty) {
               data['variants'] = [
                 {
@@ -252,10 +217,10 @@ class _HomeScreenState extends State<HomeScreen> {
           }).toList();
         }
 
-        // Базадан дерек келсе — соны көрсетеді, әйтпесе локальді деректі (phoneProducts) көрсетеді
-        List<Map<String, dynamic>> products = productsFromDB.isEmpty ? phoneProducts : productsFromDB;
+        // Тек базадағы тауарларды қолданамыз
+        List<Map<String, dynamic>> products = productsFromDB;
 
-        // 1. Фильтрлеу
+        // 3. Фильтрлеу логикасы
         List<Map<String, dynamic>> filteredProducts = products.where((product) {
           final q = searchQuery.toLowerCase();
           final name = (product['name'] ?? '').toString().toLowerCase();
@@ -274,7 +239,7 @@ class _HomeScreenState extends State<HomeScreen> {
             matchesCamera = _parseNumber(product['camera'] ?? '0') >= _parseNumber(selectedCamera);
           }
 
-          final variants = product['variants'] as List;
+          final List variants = product['variants'] is List ? product['variants'] : [];
           final int productPrice = variants.isNotEmpty ? (variants[0]['price'] ?? 0).toInt() : 0;
           final matchesPrice = productPrice >= minPrice && productPrice <= maxPrice;
 
@@ -289,7 +254,7 @@ class _HomeScreenState extends State<HomeScreen> {
           return matchesSearch && matchesBrand && matchesBattery && matchesCamera && matchesPrice && matchesRam && matchesMemory && matchesDiscount;
         }).toList();
 
-        // 2. Сұрыптау
+        // 4. Сұрыптау
         if (sortBy == 'Арзан') {
           filteredProducts.sort((a, b) => (a['variants'][0]['price']).compareTo(b['variants'][0]['price']));
         } else if (sortBy == 'Қымбат') {
@@ -359,19 +324,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               Expanded(
-                child: filteredProducts.isEmpty
-                    ? const Center(child: Text("Ештеңе табылмады 😕"))
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(16),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          childAspectRatio: 0.65,
-                          crossAxisSpacing: 15,
-                          mainAxisSpacing: 15,
-                        ),
-                        itemCount: filteredProducts.length,
-                        itemBuilder: (context, index) => _buildProductCard(filteredProducts[index]),
-                      ),
+                child: snapshot.connectionState == ConnectionState.waiting && productsFromDB.isEmpty
+                    ? const Center(child: CircularProgressIndicator(color: Colors.orange))
+                    : filteredProducts.isEmpty
+                        ? const Center(child: Text("Ештеңе табылмады 😕"))
+                        : GridView.builder(
+                            padding: const EdgeInsets.all(16),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              childAspectRatio: 0.65,
+                              crossAxisSpacing: 15,
+                              mainAxisSpacing: 15,
+                            ),
+                            itemCount: filteredProducts.length,
+                            itemBuilder: (context, index) => _buildProductCard(filteredProducts[index]),
+                          ),
               ),
             ],
           ),
@@ -381,8 +348,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildProductCard(Map<String, dynamic> phone) {
-    final variants = phone['variants'] as List;
-    final int price = variants.isNotEmpty ? variants[0]['price'] : 0;
+    final List variants = phone['variants'] is List ? phone['variants'] : [];
+    final int price = variants.isNotEmpty ? (variants[0]['price'] ?? 0) : 0;
+    
+    // Тандаулыларды аты бойынша тексереміз
     bool isFavorite = favoriteItems.any((item) => item['name'] == phone['name']);
 
     return GestureDetector(
@@ -407,9 +376,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Image.network(
                         (phone['images'] != null && (phone['images'] as List).isNotEmpty) 
                             ? phone['images'][0] 
-                            : (phone['image'] ?? ''),
+                            : (phone['image'] ?? 'https://via.placeholder.com/150'),
                         fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.smartphone, size: 50),
+                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.smartphone, size: 50, color: Colors.grey),
                       ),
                     ),
                   ),
